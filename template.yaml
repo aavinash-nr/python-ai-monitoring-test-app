@@ -34,7 +34,7 @@ Resources:
           NEW_RELIC_DISTRIBUTED_TRACING_ENABLED: "true"
           NEW_RELIC_AI_MONITORING_ENABLED: "true"
       Layers:
-        - arn:aws:lambda:us-east-1:451483290750:layer:NewRelicPython313:14
+        - arn:aws:lambda:us-east-1:451483290750:layer:NewRelicPython313:26
 Outputs:
   HelloWorldFunction:
     Description: "Hello World Lambda Function ARN"
