@@ -1,22 +1,25 @@
 import json
 import os
-import boto3
+from langchain_aws import ChatBedrock
+from langchain_core.messages import HumanMessage
 
 # For better performance, initialize the client outside the handler function.
 # This allows the connection to be reused across Lambda invocations.
-bedrock_runtime = boto3.client(
-    'bedrock-runtime',
-    region_name=os.environ.get('AWS_REGION', 'us-east-1')
+chat_model = ChatBedrock(
+    # Use the AWS region from the environment variable, default to us-east-1
+    region_name=os.environ.get('AWS_REGION', 'us-east-1'),
+    # Specify the model ID
+    model_id="anthropic.claude-3-5-sonnet-20240620-v1:0",
+    # Pass model-specific parameters using model_kwargs
+    model_kwargs={
+        "max_tokens": 2048,
+        "temperature": 0.5,
+    },
 )
-
-# Model configuration
-MODEL_ID = "anthropic.claude-3-5-sonnet-20240620-v1:0"
-MAX_TOKENS = 2048
-TEMPERATURE = 0.5
 
 def lambda_handler(event, context):
     """
-    AWS Lambda handler that invokes a Bedrock model using the direct Converse API.
+    AWS Lambda handler that invokes a Bedrock model using the LangChain framework.
     """
     print(f"Received event: {json.dumps(event)}")
 
@@ -37,32 +40,24 @@ def lambda_handler(event, context):
     print(f"Final prompt being used: \"{prompt_text}\"")
     
     try:
-        # Use direct Bedrock Converse API
-        response = bedrock_runtime.converse(
-            modelId=MODEL_ID,
-            messages=[
-                {
-                    "role": "user",
-                    "content": [{"text": prompt_text}]
-                }
-            ],
-            inferenceConfig={
-                "maxTokens": MAX_TOKENS,
-                "temperature": TEMPERATURE
-            }
-        )
+        # --- CHANGE: Use LangChain to invoke the model ---
+        # 1. Create a LangChain message from the prompt
+        message = HumanMessage(content=prompt_text)
         
-        # Extract the response content
-        final_completion_text = response['output']['message']['content'][0]['text']
+        # 2. Invoke the model with the message
+        response = chat_model.invoke([message])
         
-        print(f"Successfully received Bedrock Converse API response. Final text: {final_completion_text}")
+        # 3. The response content is directly available on the object
+        final_completion_text = response.content
+        
+        print(f"Successfully received LangChain response. Final text: {final_completion_text}")
 
     except Exception as e:
-        print(f"Error invoking model with Bedrock Converse API: {str(e)}")
+        print(f"Error invoking model with LangChain: {str(e)}")
         return {
             'statusCode': 502,
             'headers': {'Content-Type': 'application/json'},
-            'body': json.dumps({"error": f"Failed to invoke model with Bedrock Converse API: {str(e)}"})
+            'body': json.dumps({"error": f"Failed to invoke model with LangChain: {str(e)}"})
         }
 
     return {
@@ -70,8 +65,8 @@ def lambda_handler(event, context):
         'headers': {'Content-Type': 'application/json'},
         'body': json.dumps({
             "completion": final_completion_text,
-            "model_id": MODEL_ID,
+            "model_id": chat_model.model_id,
             "original_prompt_received": prompt_text,
-            "message": "Successfully processed request via Bedrock Converse API."
+            "message": "Successfully processed request via LangChain."
         })
     }
