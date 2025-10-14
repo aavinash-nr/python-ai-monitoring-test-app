@@ -1,5 +1,5 @@
 requests
 boto3
-langchain-aws
+langchain-aws>=0.1.5
 numpy
 newrelic

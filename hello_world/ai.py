@@ -1,32 +1,25 @@
 import json
 import os
-from langchain_aws import ChatBedrock
+from langchain_aws import ChatBedrockConverse
 from langchain_core.messages import HumanMessage
 
-# For better performance, initialize the client outside the handler function.
-# This allows the connection to be reused across Lambda invocations.
-chat_model = ChatBedrock(
-    # Use the AWS region from the environment variable, default to us-east-1
+# This initialization is correct and does not need to be changed
+chat_model = ChatBedrockConverse(
     region_name=os.environ.get('AWS_REGION', 'us-east-1'),
-    # Specify the model ID
-    model_id="anthropic.claude-3-5-sonnet-20240620-v1:0",
-    # Pass model-specific parameters using model_kwargs
-    model_kwargs={
-        "max_tokens": 2048,
-        "temperature": 0.5,
-    },
+    model="anthropic.claude-3-5-sonnet-20240620-v1:0",
+    temperature=0.5,
+    max_tokens=2048,
 )
 
 def lambda_handler(event, context):
     """
-    AWS Lambda handler that invokes a Bedrock model using the LangChain framework.
+    AWS Lambda handler that invokes a Bedrock model using the correct
+    ChatBedrockConverse class from LangChain.
     """
     print(f"Received event: {json.dumps(event)}")
 
-    # Default prompt text
     prompt_text = 'Hello, How are you?'
 
-    # Robustly extract the prompt from the event
     if isinstance(event, dict) and 'prompt' in event:
         prompt_text = event.get('prompt', prompt_text)
     elif 'body' in event and event['body'] is not None:
@@ -40,24 +33,18 @@ def lambda_handler(event, context):
     print(f"Final prompt being used: \"{prompt_text}\"")
     
     try:
-        # --- CHANGE: Use LangChain to invoke the model ---
-        # 1. Create a LangChain message from the prompt
         message = HumanMessage(content=prompt_text)
-        
-        # 2. Invoke the model with the message
         response = chat_model.invoke([message])
-        
-        # 3. The response content is directly available on the object
         final_completion_text = response.content
         
-        print(f"Successfully received LangChain response. Final text: {final_completion_text}")
+        print(f"Successfully received response via ChatBedrockConverse. Final text: {final_completion_text}")
 
     except Exception as e:
-        print(f"Error invoking model with LangChain: {str(e)}")
+        print(f"Error invoking model with ChatBedrockConverse: {str(e)}")
         return {
             'statusCode': 502,
             'headers': {'Content-Type': 'application/json'},
-            'body': json.dumps({"error": f"Failed to invoke model with LangChain: {str(e)}"})
+            'body': json.dumps({"error": f"Failed to invoke model with ChatBedrockConverse: {str(e)}"})
         }
 
     return {
@@ -65,8 +52,9 @@ def lambda_handler(event, context):
         'headers': {'Content-Type': 'application/json'},
         'body': json.dumps({
             "completion": final_completion_text,
+            # --- THIS IS THE CORRECTED LINE ---
             "model_id": chat_model.model_id,
             "original_prompt_received": prompt_text,
-            "message": "Successfully processed request via LangChain."
+            "message": "Successfully processed request via LangChain ChatBedrockConverse."
         })
     }
